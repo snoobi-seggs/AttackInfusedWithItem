@@ -23,7 +23,7 @@ import java.util.List;
 
 
 // Command usage
-@Command(label = "attack", aliases = {"at","am","snoospawn"}, usage = "[IdOfObject] [radiusSpawnFromSelf] [height] [count] [rotXupwards] [rotYHorizontalFromSELF] [rotZlastrot]\n\nID of object is the id of the object in the handbook\nradiusSpawnFromSelf is the distance between u and the object spawned when atking\nheight is the distance above u the gadget is spawned\nrotX change the vertical rotation of object\nrotY changed the horizontal rotation from where u are facing [180 will shoot behind u always]\nrotZ is the 3rd cross vector rotation to rot y and x", targetRequirement = TargetRequirement.NONE)
+@Command(label = "attack", aliases = {"at","am","snoospawn"}, usage = "[IdOfObject] [radiusSpawnFromSelf] [height] [count] [spreadRationToRadius] [rotXupwards] [rotYHorizontalFromSELF] [rotZlastrot]\n\nID of object is the id of the object in the handbook\nradiusSpawnFromSelf is the distance between u and the object spawned when atking\nheight is the distance above u the gadget is spawned\nrotX change the vertical rotation of object\nrotY changed the horizontal rotation from where u are facing [180 will shoot behind u always]\nrotZ is the 3rd cross vector rotation to rot y and x", targetRequirement = TargetRequirement.NONE)
 public class AttackModifierCommand implements CommandHandler {
 
     static int gadgetId = 0;
@@ -35,10 +35,19 @@ public class AttackModifierCommand implements CommandHandler {
     static float rotZ = 0;
     static float height = 0;
     static int count = 1;
+    static float spread = 0;
     static List<EntityGadget> activeGadgets = new ArrayList<>(); // Current gadgets
     static List<EntityGadget> removeGadgets = new ArrayList<>(); // To be removed gadgets
     static List<EntityVehicle> activeVehicles = new ArrayList<>(); // Current gadgets
     static List<EntityVehicle> removeVehicles = new ArrayList<>(); // To be removed gadgets
+
+    private Position GetRandomPositionInCircle(Position origin, double radius) {
+        Position target = origin.clone();
+        double angle = Math.random() * 360;
+        double r = Math.sqrt(Math.random() * radius * radius);
+        target.addX((float) (r * Math.cos(angle))).addZ((float) (r * Math.sin(angle)));
+        return target;
+    }
 
     @Override
     public void execute(Player sender, Player targetPlayer, List<String> args) {
@@ -54,14 +63,31 @@ public class AttackModifierCommand implements CommandHandler {
         float rotYFromArgs = 0f;
         float rotZFromArgs = 0f;
         int countFromArgs = 1;
+        float spreadFromArgs = 0f;
         switch (args.size()) {
+            case 8:
+                try {
+                    rotZFromArgs = Float.parseFloat(args.get(7));
+                } catch (NumberFormatException e) {
+                    CommandHandler.sendMessage(targetPlayer, "the rotation coords for Z is invalid, default to 0");
+                }
             case 7:
                 try {
-                    rotZFromArgs = Float.parseFloat(args.get(6));
-                    rotYFromArgs = Float.parseFloat(args.get(5));
-                    rotXFromArgs = Float.parseFloat(args.get(4));
+                    rotYFromArgs = Float.parseFloat(args.get(6));
                 } catch (NumberFormatException e) {
-                    CommandHandler.sendMessage(targetPlayer, "these rotation coords are invalid, default to 0");
+                    CommandHandler.sendMessage(targetPlayer, "the rotation coords for Y is invalid, default to 0");
+                }
+            case 6:
+                try {
+                    rotZFromArgs = Float.parseFloat(args.get(5));
+                } catch (NumberFormatException e) {
+                    CommandHandler.sendMessage(targetPlayer, "the rotation coords for X is invalid, default to 0");
+                }
+            case 5:
+                try {
+                    spreadFromArgs = Float.parseFloat(args.get(4));
+                } catch (NumberFormatException e) {
+                    CommandHandler.sendMessage(targetPlayer, "the spread for gadget spawn is invalid, default to 0");
                 }
             case 4:
                 try {
@@ -98,7 +124,7 @@ public class AttackModifierCommand implements CommandHandler {
                 }
                 break;
             default:
-                CommandHandler.sendMessage(targetPlayer, "[IdOfObject] [radiusSpawnFromSelf] [height] [count] [rotXupwards] [rotYHorizontalFromSELF] [rotZlastrot]\n\nID of object is the id of the object in the handbook\nradiusSpawnFromSelf is the distance between u and the object spawned when atking\nheight is the distance above u the gadget is spawned\nrotX change the vertical rotation of object\nrotY changed the horizontal rotation from where u are facing [180 will shoot behind u always]\nrotZ is the 3rd cross vector rotation to rot y and x");
+                CommandHandler.sendMessage(targetPlayer, "[IdOfObject] [radiusSpawnFromSelf] [height] [count] [spreadRatioToRadius] [rotXupwards] [rotYHorizontalFromSELF] [rotZlastrot]\n\nID of object is the id of the object in the handbook\nradiusSpawnFromSelf is the distance between u and the object spawned when atking\nheight is the distance above u the gadget is spawned\nrotX change the vertical rotation of object\nrotY changed the horizontal rotation from where u are facing [180 will shoot behind u always]\nrotZ is the 3rd cross vector rotation to rot y and x");
         }
 
         //checks if is weapon or itemid coz some people may want spawn wishes while atking or smth;
@@ -129,6 +155,7 @@ public class AttackModifierCommand implements CommandHandler {
         rotZ = rotZFromArgs;
         height = heightFromArgs;
         count = countFromArgs;
+        spread = spreadFromArgs;
 
         //modifies last used gadget for future attacks
         if (gadgetId != 0) {
@@ -155,6 +182,7 @@ public class AttackModifierCommand implements CommandHandler {
         float addedAttackHeight = 0;
         float addedAttackRadius = 0;
         int addedAttackCount = 1;
+        float addedAttackSpread = 0;
         
         // Currently will only damage the player
         switch (skillId) { // For Raiden
@@ -178,6 +206,7 @@ public class AttackModifierCommand implements CommandHandler {
                 addedAttackHeight = height;
                 addedAttackRadius = radius;
                 addedAttackCount = count;
+                addedAttackSpread = spread;
                 break;
         }
 
@@ -195,9 +224,10 @@ public class AttackModifierCommand implements CommandHandler {
 
         // Only spawn on match
         if (addedAttackGadgetId != 0) {
+            Position originalTargetRefererence = new Position(target);
             for (int i = 1 ; i <= addedAttackCount  ; i++) {
-                //EntityGadget attGadget = new EntityGadget(scene, addedAttackGadgetId, target, rot);
-                EntityVehicle attGadget = new EntityVehicle(scene, session.getPlayer(), addedAttackGadgetId, 1, target, addedAttackRotation);
+                Position staggeredPosition = new AttackModifierCommand().GetRandomPositionInCircle(originalTargetRefererence,count * addedAttackSpread);
+                EntityVehicle attGadget = new EntityVehicle(scene, session.getPlayer(), addedAttackGadgetId, 1, staggeredPosition, addedAttackRotation);
                 // Silly way to track gadget alive time -_-
                 int currTime = (int)(System.currentTimeMillis() - 1665393100);
                 attGadget.setGroupId(currTime);
@@ -213,14 +243,19 @@ public class AttackModifierCommand implements CommandHandler {
         }
         if (addedAttackItemId != 0) {
             target.addY(3f);
+            Position originalTargetRefererence = new Position(target);
             for (int i = 1 ; i <= addedAttackCount  ; i++) {
-                EntityItem attItem = new EntityItem(scene, session.getPlayer(), GameData.getItemDataMap().get(addedAttackItemId), target, addedAttackCount);
+                Position staggeredPosition = new AttackModifierCommand().GetRandomPositionInCircle(originalTargetRefererence,count * addedAttackSpread);
+                EntityItem attItem = new EntityItem(scene, session.getPlayer(), GameData.getItemDataMap().get(addedAttackItemId), staggeredPosition, 1);
                 scene.addEntity(attItem);
             }
         }
         if (addedAttackMonsterId != 0) {
+            target.addY(1f);
+            Position originalTargetRefererence = new Position(target);
             for (int i = 1 ; i <= addedAttackCount  ; i++) {
-                EntityMonster attMonster = new EntityMonster(scene,GameData.getMonsterDataMap().get(addedAttackMonsterId), target, 90); 
+                Position staggeredPosition = new AttackModifierCommand().GetRandomPositionInCircle(originalTargetRefererence,count * addedAttackSpread);
+                EntityMonster attMonster = new EntityMonster(scene,GameData.getMonsterDataMap().get(addedAttackMonsterId), staggeredPosition, 90); 
                 scene.addEntity(attMonster);
             }
         }
