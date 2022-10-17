@@ -5,16 +5,24 @@ import emu.grasscutter.server.event.EventHandler;
 import emu.grasscutter.server.event.HandlerPriority;
 import emu.grasscutter.server.event.game.ReceivePacketEvent;
 
+//alteriseggs cum rag
+import thorny.grasscutters.AttackModifier.utils.*;
+
 public final class AttackModifier extends Plugin {
     private static AttackModifier instance;
+    public ConfigParser config;
     public static AttackModifier getInstance() {
         return instance;
     }
-    @Override public void onLoad() {
+    @Override
+    public void onLoad() {
         // Set the plugin instance.
         instance = this;
+        this.config = new ConfigParser();
+        this.getLogger().info("Loaded yay omg cum seggs real");
     }
-    @Override public void onEnable() {
+    @Override
+    public void onEnable() {
         new EventHandler<>(ReceivePacketEvent.class)
                 .priority(HandlerPriority.NORMAL)
                 .listener(EventListener::onPacket)
@@ -27,8 +35,18 @@ public final class AttackModifier extends Plugin {
         this.getLogger().info("The Attack Modifier plugin has been enabled.");
     }
 
-    @Override public void onDisable() {
+    @Override
+    public void onDisable() {
         // Log a plugin status message.
         this.getLogger().info("Attack Modifier has been disabled.");
+        this.config.saveConfig();
+    }
+
+    public void getConfig() {
+        config.getConfig();
+    }
+
+    public void reloadConfig() {
+        config.loadConfig();
     }
 }

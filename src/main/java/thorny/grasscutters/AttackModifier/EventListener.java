@@ -2,6 +2,7 @@ package thorny.grasscutters.AttackModifier;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import emu.grasscutter.Grasscutter;
 import emu.grasscutter.net.packet.PacketOpcodes;
 import emu.grasscutter.net.proto.EvtDoSkillSuccNotifyOuterClass.EvtDoSkillSuccNotify;
 import emu.grasscutter.server.event.EventHandler;
@@ -33,6 +34,7 @@ public final class EventListener {
                 // Get packet info
                 var session = event.getGameSession();
                 int skillId = notify.getSkillId();
+                //Grasscutter.getLogger().info("SKILL ID : " + skillId);
 
                 // Send to addAttack
                 AttackModifierCommand.addAttack(session, skillId);
